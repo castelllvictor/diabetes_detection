@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción de Diabetes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        input, button {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        #resultado, #debug {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Predicción de Diabetes</h1>
+    <form id="prediccionForm">
+        <input type="number" id="input1" placeholder="Valor 1" required><br>
+        <input type="number" id="input2" placeholder="Valor 2" required><br>
+        <input type="number" id="input3" placeholder="Valor 3" required><br>
+        <input type="number" id="input4" placeholder="Valor 4" required><br>
+        <input type="number" id="input5" placeholder="Valor 5" required><br>
+        <input type="number" id="input6" placeholder="Valor 6" step="0.1" required><br>
+        <input type="number" id="input7" placeholder="Valor 7" step="0.001" required><br>
+        <input type="number" id="input8" placeholder="Valor 8" required><br>
+        <button type="submit">Predecir</button>
+    </form>
+    <div id="resultado"></div>
+    <div id="debug"></div>
+
+    <script>
+        document.getElementById('prediccionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const inputData = [];
+            for (let i = 1; i <= 8; i++) {
+                inputData.push(parseFloat(document.getElementById(`input${i}`).value));
+            }
+
+            const scoringUri = "http://53d4022b-cc22-429d-8273-7351b55ea631.eastus.azurecontainer.io/score";
+            
+            try {
+                console.log('Enviando datos:', JSON.stringify({data: [inputData]}));
+                document.getElementById('debug').textContent = 'Enviando solicitud...';
+
+                const response = await axios.post(scoringUri, {
+                    data: [inputData]
+                }, {
+                    headers: { "Content-Type": "application/json" }
+                });
+
+                console.log('Respuesta completa:', response);
+                document.getElementById('debug').textContent += '\nRespuesta recibida.';
+
+                if (response.status === 200) {
+                    let result;
+                    try {
+                        // Intentamos parsear la respuesta como JSON
+                        result = JSON.parse(response.data);
+                    } catch (parseError) {
+                        console.error('Error al parsear la respuesta:', parseError);
+                        document.getElementById('debug').textContent += '\nError al parsear la respuesta: ' + parseError.message;
+                        result = response.data; // Si falla el parsing, usamos la respuesta tal cual
+                    }
+
+                    console.log('Datos de respuesta:', result);
+                    document.getElementById('debug').textContent += '\nDatos de respuesta: ' + JSON.stringify(result, null, 2);
+
+                    if (result && result.result && Array.isArray(result.result) && result.result.length > 0) {
+                        const prediction = result.result[0];
+                        document.getElementById('resultado').textContent = `Predicción: ${prediction}`;
+                    } else {
+                        document.getElementById('resultado').textContent = 'Error: La respuesta no tiene el formato esperado';
+                    }
+                } else {
+                    document.getElementById('resultado').textContent = `Error: ${response.statusText}`;
+                }
+            } catch (error) {
+                console.error('Error completo:', error);
+                document.getElementById('debug').textContent += '\nError detallado: ' + JSON.stringify(error, null, 2);
+                document.getElementById('resultado').textContent = `Error: ${error.message}`;
+                if (error.response) {
+                    document.getElementById('debug').textContent += '\nRespuesta de error: ' + JSON.stringify(error.response.data, null, 2);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
